@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'login.html';
+        }
+    </script>
+    <title>SaltGuard — Clinical Decision Support</title>
+    <meta name="description" content="AI-powered clinical decision support for cirrhosis and electrolyte imbalance risk prediction.">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF for PDF report download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="icon">⚕</span>
+                <h1>ElectroNa</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li class="active" id="nav-risk" onclick="switchTab('risk')">
+                        <svg viewBox="0 0 24 24" fill="none" class="nav-icon">
+                            <path d="M4 6h16M4 12h16M4 18h7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Risk Overview
+                    </li>
+                    <li id="nav-clinical" onclick="switchTab('clinical')">
+                        <svg viewBox="0 0 24 24" fill="none" class="nav-icon">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Clinical Details
+                    </li>
+                    <li id="nav-history" onclick="switchTab('history')">
+                        <svg viewBox="0 0 24 24" fill="none" class="nav-icon">
+                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Prediction History
+                    </li>
+                    <li id="nav-ai" onclick="switchTab('ai')">
+                        <svg viewBox="0 0 24 24" fill="none" class="nav-icon">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        AI Clinical Insight
+                    </li>
+                    <li onclick="logout()" style="margin-top: auto; color: var(--danger);">
+                        <svg viewBox="0 0 24 24" fill="none" class="nav-icon">
+                            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Logout
+                    </li>
+                </ul>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar">SJ</div>
+                <div class="details">
+                    <p class="name">Dr. Sarah Jenkins</p>
+                    <p class="role">Hepatologist</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content (Risk Predictor) -->
+        <main class="main-content" id="view-risk">
+            <header>
+                <div class="header-left">
+                    <h2>Patient Overview</h2>
+                    <p class="date">Live cirrohsis Severity risk Prediction linked to Server</p>
+                </div>
+                <div class="header-right">
+                    <button class="action-btn"
+                        style="background: rgba(255,255,255,0.1); color: #fff; margin-right: 15px;"
+                        onclick="resetVitals()">Reset Vitals</button>
+                    <button class="action-btn" onclick="downloadReport()">Download Report</button>
+                    <div class="notification" id="api-status">🟢</div>
+                </div>
+            </header>
+
+            <div class="patient-card glass-panel" style="gap: 20px; flex-wrap: wrap;">
+                <div class="patient-info" style="min-width: 200px;">
+                    <h3 id="current-patient-name">Test Subject</h3>
+                    <p class="patient-id" id="current-patient-id">ID: #SG-LIVE</p>
+                </div>
+                <div class="patient-stats" style="flex: 1; flex-wrap: wrap;">
+                    <div class="stat">
+                        <span class="label">Age</span>
+                        <input type="number" id="inp-age" class="styled-input" value="65">
+                    </div>
+                    <div class="stat">
+                        <span class="label">Gender</span>
+                        <select id="inp-gender" class="styled-input">
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                        </select>
+                    </div>
+                    <div class="stat">
+                        <span class="label">Status</span>
+                        <span class="value" id="status-badge" style="color: #adb5bd;">Awaiting Info</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-layout">
+                <!-- Data Inputs for ML Model -->
+                <div class="glass-panel factors-card" style="grid-column: span 1;">
+                    <h3>Laboratory Values</h3>
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label>Creatinine (mg/dL)</label>
+                            <input type="number" step="0.1" id="inp-creat" class="styled-input" value="1.5">
+                        </div>
+                        <div class="input-group">
+                            <label>Bilirubin (mg/dL)</label>
+                            <input type="number" step="0.1" id="inp-bili" class="styled-input" value="1.2">
+                        </div>
+                        <div class="input-group">
+                            <label>INR</label>
+                            <input type="number" step="0.1" id="inp-inr" class="styled-input" value="1.1">
+                        </div>
+                        <div class="input-group">
+                            <label>Urea Nitrogen (mg/dL)</label>
+                            <input type="number" step="0.1" id="inp-urea" class="styled-input" value="25.0">
+                        </div>
+                        <div class="input-group">
+                            <label>Sodium (mEq/L)</label>
+                            <input type="number" step="0.1" id="inp-sodium" class="styled-input" value="138.0">
+                        </div>
+                        <div class="input-group">
+                            <label>Hemoglobin (g/dL)</label>
+                            <input type="number" step="0.1" id="inp-hemo" class="styled-input" value="10.5">
+                        </div>
+                        <div class="input-group">
+                            <label>WBC (K/uL)</label>
+                            <input type="number" step="0.1" id="inp-wbc" class="styled-input" value="8.0">
+                        </div>
+                    </div>
+                    <button class="action-btn" style="width: 100%; margin-top: 15px;" onclick="predictRisk()">
+                        Prediction</button>
+                    <p id="api-error" style="color: var(--danger); font-size: 13px; margin-top: 10px; display: none;">
+                    </p>
+                </div>
+
+                <!-- Risk of Severity -->
+                <div class="glass-panel risk-card">
+                    <h3>Risk of Severity</h3>
+                    <div class="risk-gauge-container">
+                        <canvas id="riskGauge"></canvas>
+                        <div class="gauge-center">
+                            <span class="score" id="risk-score">--%</span>
+                            <span class="status text-warning" id="risk-status">RUN PREDICTION</span>
+                        </div>
+                    </div>
+                    <p class="risk-desc">Live cirrhosis severity risk prediction from ML model based on routine lab data above.</p>
+                </div>
+
+                <!-- Feature Importance List -->
+                <div class="glass-panel factors-card">
+                    <h3>Risk Factor Severity Scale</h3>
+                    <div class="chart-container" style="min-height:220px; margin-top:10px;">
+                        <canvas id="factorsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Main Content (Clinical Details / Patients Roster) -->
+        <main class="main-content" id="view-clinical" style="display: none;">
+            <header>
+                <div class="header-left">
+                    <h2>Clinical Roster</h2>
+                    <p class="date">Fetching live from saltguard.db (SQLite)</p>
+                </div>
+                <div class="header-right">
+                    <button class="action-btn" onclick="fetchPatients()">Refresh Data</button>
+                </div>
+            </header>
+
+            <div class="glass-panel" style="overflow-x: auto; padding-right: 24px;">
+                <h3>History of Admission Records</h3>
+                <table class="patient-table">
+                    <thead>
+                        <tr>
+                            <th>Patient ID</th>
+                            <th>Age | Group</th>
+                            <th>Gender</th>
+                            <th>Creatinine</th>
+                            <th>BUN</th>
+                            <th>Sodium</th>
+                            <th>HGB / WBC</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patients-table-body">
+                        <tr>
+                            <td colspan="8">Connecting to local database...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- Main Content (Prediction History) -->
+        <main class="main-content" id="view-history" style="display: none;">
+            <header>
+                <div class="header-left">
+                    <h2>Prediction History</h2>
+                    <p class="date">All predictions run from the dashboard — newest first</p>
+                </div>
+                <div class="header-right">
+                    <button class="action-btn" onclick="fetchHistory()">Refresh</button>
+                    <button class="action-btn" style="background:rgba(239,35,60,0.15);color:var(--danger);margin-left:10px;" onclick="clearHistory()">Clear All</button>
+                </div>
+            </header>
+
+            <div class="glass-panel" style="overflow-x: auto; padding-right: 24px;">
+                <h3>Dashboard Prediction Log</h3>
+                <table class="patient-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Patient Label</th>
+                            <th>Age / Gender</th>
+                            <th>Creatinine</th>
+                            <th>BUN</th>
+                            <th>Sodium</th>
+                            <th>HGB / WBC</th>
+                            <th>Risk %</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <tr><td colspan="9">Loading prediction history...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- AI Clinical Insight Tab                                        -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <main class="main-content" id="view-ai" style="display: none;">
+            <header>
+                <div class="header-left">
+                    <h2>AI Clinical Insight</h2>
+                    <p class="date">Rule-based clinical decision support — generated from current lab values</p>
+                </div>
+                <div class="header-right">
+                    <button class="action-btn" id="btn-generate-insight" onclick="generateInsight()">
+                        🧠 Generate Insight
+                    </button>
+                    <button class="action-btn" id="btn-download-pdf"
+                        style="background: rgba(6,214,160,0.15); color: var(--normal); border: 1px solid rgba(6,214,160,0.3); display:none;"
+                        onclick="downloadPDFReport()">
+                        📄 Download PDF
+                    </button>
+                    <button class="action-btn" id="btn-export-text"
+                        style="background: rgba(252,163,17,0.15); color: var(--warning); border: 1px solid rgba(252,163,17,0.3); display:none; margin-left: 10px;"
+                        onclick="exportTextReport()">
+                        📋 Export Text
+                    </button>
+                    <button class="action-btn" id="btn-copy-summary"
+                        style="background: rgba(67,97,238,0.15); color: var(--accent); border: 1px solid rgba(67,97,238,0.3); display:none; margin-left: 10px;"
+                        onclick="copyDoctorSummary()">
+                        📌 Copy Summary
+                    </button>
+                </div>
+            </header>
+
+            <!-- AI Insight loader -->
+            <div id="ai-loader" class="glass-panel ai-loader-panel" style="display:none;">
+                <div class="ai-pulse-ring"></div>
+                <p>Analysing lab values against clinical thresholds…</p>
+            </div>
+
+            <!-- AI Insight empty state -->
+            <div id="ai-empty" class="glass-panel ai-empty-state">
+                <div class="ai-empty-icon">🧬</div>
+                <h3>No Insight Generated Yet</h3>
+                <p>Run a prediction on the Risk Overview tab first, then click <strong>Generate Insight</strong> to produce a structured clinical analysis.</p>
+                <button class="action-btn" style="margin-top: 20px;" onclick="switchTab('risk')">Go to Risk Overview →</button>
+            </div>
+
+            <!-- AI Insight content (hidden until generated) -->
+            <div id="ai-content" style="display:none; flex-direction:column; gap:24px;">
+
+                <!-- ❶ Real-Time Alerts (shown only when critical) -->
+                <div id="ai-alerts" style="display:none; flex-direction:column; gap:10px;"></div>
+
+                <!-- ❷ Risk Assessment + Confidence + Trend -->
+                <div class="ai-top3-row">
+                    <!-- Risk badge -->
+                    <div class="glass-panel ai-risk-badge-panel" id="ai-risk-badge-panel">
+                        <div class="ai-badge-header">
+                            <span class="ai-section-label">🧠 Risk Assessment</span>
+                            <span class="ai-risk-chip" id="ai-risk-chip">—</span>
+                        </div>
+                        <div class="ai-risk-pct" id="ai-risk-pct">--%</div>
+                        <p class="ai-risk-interp" id="ai-risk-interp">—</p>
+                    </div>
+
+                    <!-- Confidence + Urgency -->
+                    <div class="glass-panel ai-confidence-panel">
+                        <span class="ai-section-label">📊 Model Confidence</span>
+                        <div class="ai-confidence-ring-wrap">
+                            <svg class="ai-conf-svg" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
+                                <circle cx="60" cy="60" r="50" fill="none" id="ai-conf-circle"
+                                    stroke="#06d6a0" stroke-width="12"
+                                    stroke-dasharray="314" stroke-dashoffset="314"
+                                    stroke-linecap="round"
+                                    transform="rotate(-90 60 60)"/>
+                            </svg>
+                            <div class="ai-conf-label">
+                                <span id="ai-conf-pct">--%</span>
+                                <small>Confidence</small>
+                            </div>
+                        </div>
+                        <div class="ai-urgency-row">
+                            <span class="ai-section-label">⚡ Urgency</span>
+                            <span class="ai-urgency-chip" id="ai-urgency-chip">—</span>
+                        </div>
+                        <p class="ai-urgency-reason" id="ai-urgency-reason">—</p>
+                    </div>
+
+                    <!-- Risk Trend -->
+                    <div class="glass-panel ai-trend-panel">
+                        <span class="ai-section-label">📈 Risk Trend / History</span>
+                        <div class="ai-trend-timeline" id="ai-trend-timeline">
+                            <p style="color:var(--text-muted); font-size:13px; margin-top:16px;">No history yet — run more predictions.</p>
+                        </div>
+                        <p class="ai-trend-interp" id="ai-trend-interp">—</p>
+                    </div>
+                </div>
+
+                <!-- 2.5 MELD Score Panel -->
+                <div class="ai-bottom-row" style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+                    <div class="glass-panel" id="ai-meld-panel" style="border-left: 4px solid var(--accent); display: flex; flex-direction: column; gap: 10px;">
+                        <div class="ai-badge-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="ai-section-label">🩺 MELD Score Comparison</span>
+                            <span class="ai-risk-chip chip-normal" id="ai-meld-chip" style="font-size:12px;">—</span>
+                        </div>
+                        <div style="display: flex; gap: 20px; align-items: center;">
+                            <div class="ai-risk-pct text-normal" id="ai-meld-score" style="font-size: 36px; font-weight: 700; min-width: 60px;">--</div>
+                            <p class="ai-risk-interp" id="ai-meld-interp" style="margin: 0; font-size: 15px; color: var(--text-light); line-height: 1.5;">—</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ❸ Abnormal Value Highlighting -->
+                <div class="glass-panel">
+                    <h3>🧪 Abnormal Value Highlighting</h3>
+                    <div class="ai-abnormal-grid" id="ai-abnormal-grid"></div>
+                </div>
+
+                <!-- ❹ Risk Contribution / Explainability -->
+                <div class="glass-panel">
+                    <h3>📊 Risk Contribution (Explainability)</h3>
+                    <div class="ai-contrib-list" id="ai-contrib-list"></div>
+                </div>
+
+                <!-- ❺ Differential Diagnosis -->
+                <div class="glass-panel">
+                    <h3>🧬 Differential Diagnosis</h3>
+                    <div class="ai-diff-grid" id="ai-diff-grid"></div>
+                </div>
+
+                <!-- ❻ Key Findings + Complications -->
+                <div class="ai-mid-row">
+                    <div class="glass-panel">
+                        <h3>🔬 Key Findings</h3>
+                        <ul class="ai-list" id="ai-findings"></ul>
+                    </div>
+                    <div class="glass-panel">
+                        <h3>⚠️ Possible Complications</h3>
+                        <ul class="ai-list" id="ai-complications"></ul>
+                    </div>
+                </div>
+
+                <!-- ❼ Recommended Actions -->
+                <div class="glass-panel">
+                    <h3>✅ Recommended Clinical Actions</h3>
+                    <ol class="ai-action-list" id="ai-actions"></ol>
+                </div>
+
+                <!-- ❽ Quick Summary + What-If -->
+                <div class="ai-bottom-row">
+                    <div class="glass-panel ai-quick-summary-panel">
+                        <h3>📝 Quick Doctor Summary</h3>
+                        <div class="ai-doctor-notes" id="ai-quick-line1">—</div>
+                        <div class="ai-doctor-notes" style="margin-top:10px;" id="ai-quick-line2">—</div>
+                    </div>
+                    <div class="glass-panel ai-whatif-panel">
+                        <h3>🔄 What-If Simulation</h3>
+                        <ul class="ai-whatif-list" id="ai-whatif-list"></ul>
+                        <div class="ai-severity-guide">
+                            <span class="sev-dot sev-green"></span><span>Stable (&lt;30%)</span>
+                            <span class="sev-dot sev-yellow"></span><span>Monitor (30–70%)</span>
+                            <span class="sev-dot sev-red"></span><span>Critical (&gt;70%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ❾ Patient Medical Report -->
+                <div class="glass-panel ai-report-panel" id="ai-report-section">
+                    <div class="ai-report-header">
+                        <div>
+                            <div class="ai-report-title">📄 Patient Medical Report</div>
+                            <div class="ai-report-subtitle">SaltGuard Clinical Decision Support — AI Engine v2</div>
+                        </div>
+                        <div class="ai-report-meta" id="ai-report-meta">—</div>
+                    </div>
+
+                    <div class="ai-report-grid">
+                        <div class="ai-report-section">
+                            <div class="ai-report-section-title">Patient Information</div>
+                            <table class="ai-report-table" id="ai-report-patient"></table>
+                        </div>
+                        <div class="ai-report-section">
+                            <div class="ai-report-section-title">Laboratory Findings</div>
+                            <table class="ai-report-table" id="ai-report-labs"></table>
+                        </div>
+                    </div>
+
+                    <div class="ai-report-section" style="margin-top:20px;">
+                        <div class="ai-report-section-title">Risk Assessment</div>
+                        <div class="ai-report-risk-row">
+                            <div class="ai-report-risk-item">
+                                <span class="ai-report-risk-label">Severity Risk</span>
+                                <span class="ai-report-risk-val" id="rpt-risk-pct">--%</span>
+                            </div>
+                            <div class="ai-report-risk-item">
+                                <span class="ai-report-risk-label">Category</span>
+                                <span class="ai-report-risk-val" id="rpt-risk-level">—</span>
+                            </div>
+                            <div class="ai-report-risk-item" style="flex:2;">
+                                <span class="ai-report-risk-label">Interpretation</span>
+                                <span class="ai-report-risk-val" style="font-size:13px;font-weight:400;" id="rpt-risk-interp">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ai-report-section" style="margin-top:20px;">
+                        <div class="ai-report-section-title">Doctor Notes</div>
+                        <div class="ai-doctor-notes" id="ai-doctor-notes">—</div>
+                    </div>
+
+                    <div class="ai-report-footer">
+                        Generated by SaltGuard Clinical AI Engine &nbsp;|&nbsp;
+                        <span id="rpt-timestamp">—</span> &nbsp;|&nbsp;
+                        For clinical use only — not a substitute for professional medical judgement. &nbsp;|&nbsp;
+                        This system can be integrated with hospital EHR systems for real-time patient monitoring.
+                    </div>
+                </div>
+
+            </div><!-- end #ai-content -->
+        </main>
+
+    </div>
+    <script src="script.js?v=17"></script>
+</body>
+
+</html>
+
+                    <div class="glass-panel ai-risk-badge-panel" id="ai-risk-badge-panel">
+                        <div class="ai-badge-header">
+                            <span class="ai-section-label">🧠 Risk Assessment</span>
+                            <span class="ai-risk-chip" id="ai-risk-chip">—</span>
+                        </div>
+                        <div class="ai-risk-pct" id="ai-risk-pct">--%</div>
+                        <p class="ai-risk-interp" id="ai-risk-interp">—</p>
+                    </div>
+
+                    <div class="glass-panel ai-confidence-panel">
+                        <span class="ai-section-label">📊 Model Confidence</span>
+                        <div class="ai-confidence-ring-wrap">
+                            <svg class="ai-conf-svg" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
+                                <circle cx="60" cy="60" r="50" fill="none" id="ai-conf-circle"
+                                    stroke="#06d6a0" stroke-width="12"
+                                    stroke-dasharray="314" stroke-dashoffset="314"
+                                    stroke-linecap="round"
+                                    transform="rotate(-90 60 60)"/>
+                            </svg>
+                            <div class="ai-conf-label">
+                                <span id="ai-conf-pct">--%</span>
+                                <small>Confidence</small>
+                            </div>
+                        </div>
+                        <div class="ai-urgency-row">
+                            <span class="ai-section-label">⚡ Urgency</span>
+                            <span class="ai-urgency-chip" id="ai-urgency-chip">—</span>
+                        </div>
+                        <p class="ai-urgency-reason" id="ai-urgency-reason">—</p>
+                    </div>
+                </div>
+
+                <!-- Row 2: Findings + Complications -->
+                <div class="ai-mid-row">
+                    <div class="glass-panel">
+                        <h3>🔬 Key Findings</h3>
+                        <ul class="ai-list" id="ai-findings"></ul>
+                    </div>
+                    <div class="glass-panel">
+                        <h3>⚠️ Possible Complications</h3>
+                        <ul class="ai-list" id="ai-complications"></ul>
+                    </div>
+                </div>
+
+                <!-- Row 3: Actions -->
+                <div class="glass-panel">
+                    <h3>✅ Recommended Clinical Actions</h3>
+                    <ol class="ai-action-list" id="ai-actions"></ol>
+                </div>
+
+                <!-- ══════════ PATIENT MEDICAL REPORT ══════════ -->
+                <div class="glass-panel ai-report-panel" id="ai-report-section">
+                    <div class="ai-report-header">
+                        <div>
+                            <div class="ai-report-title">📄 Patient Medical Report</div>
+                            <div class="ai-report-subtitle">Clinical Decision Support — SaltGuard AI Engine</div>
+                        </div>
+                        <div class="ai-report-meta" id="ai-report-meta">—</div>
+                    </div>
+
+                    <div class="ai-report-grid">
+                        <!-- Patient Info -->
+                        <div class="ai-report-section">
+                            <div class="ai-report-section-title">Patient Information</div>
+                            <table class="ai-report-table" id="ai-report-patient"></table>
+                        </div>
+
+                        <!-- Laboratory Findings -->
+                        <div class="ai-report-section">
+                            <div class="ai-report-section-title">Laboratory Findings</div>
+                            <table class="ai-report-table" id="ai-report-labs"></table>
+                        </div>
+                    </div>
+
+                    <!-- Risk Assessment -->
+                    <div class="ai-report-section" style="margin-top:20px;">
+                        <div class="ai-report-section-title">Risk Assessment</div>
+                        <div class="ai-report-risk-row">
+                            <div class="ai-report-risk-item">
+                                <span class="ai-report-risk-label">Mortality Risk</span>
+                                <span class="ai-report-risk-val" id="rpt-risk-pct">--%</span>
+                            </div>
+                            <div class="ai-report-risk-item">
+                                <span class="ai-report-risk-label">Category</span>
+                                <span class="ai-report-risk-val" id="rpt-risk-level">—</span>
+                            </div>
+                            <div class="ai-report-risk-item" style="flex:2;">
+                                <span class="ai-report-risk-label">Interpretation</span>
+                                <span class="ai-report-risk-val" style="font-size:13px; font-weight:400;" id="rpt-risk-interp">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Doctor Notes -->
+                    <div class="ai-report-section" style="margin-top:20px;">
+                        <div class="ai-report-section-title">Doctor Notes</div>
+                        <div class="ai-doctor-notes" id="ai-doctor-notes">—</div>
+                    </div>
+
+                    <div class="ai-report-footer">Generated by SaltGuard Clinical AI Engine &nbsp;|&nbsp; <span id="rpt-timestamp">—</span> &nbsp;|&nbsp; For clinical use only — not a substitute for professional medical judgement.</div>
+                </div>
+
+            </div><!-- end #ai-content -->
+        </main>
+
+    </div>
+    <script src="script.js?v=7"></script>
+</body>
+
+</html>

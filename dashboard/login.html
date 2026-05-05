@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | ElectroNa Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="login-body">
+    <div class="glass-panel login-card">
+        <div class="login-header">
+            <div class="logo">
+                <span class="icon">⚕</span>
+                <span>ElectroNa</span>
+            </div>
+            <p>Clinical Risk Management Portal</p>
+        </div>
+
+        <form class="login-form" id="loginForm">
+            <div class="input-group">
+                <label for="username">Email or Username</label>
+                <input type="text" id="username" placeholder="Enter your credentials" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+
+            <div id="loginError"
+                style="color: var(--danger); font-size: 14px; text-align: center; margin-bottom: 16px; display: none;">
+                Invalid credentials. Please try again.
+            </div>
+
+            <div class="login-btn-container">
+                <button type="submit" class="action-btn login-btn">Sign In to Dashboard</button>
+            </div>
+        </form>
+
+        <div class="login-footer">
+            <p>Need assistance? <a href="#">Contact IT Support</a></p>
+            <p style="margin-top: 12px; font-size: 12px; opacity: 0.6;">&copy; 2026 ElectroNa Clinical Analytics</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            // Simple demo authentication
+            if (user === 'admin' && pass === 'password') {
+                localStorage.setItem('isLoggedIn', 'true');
+                window.location.href = 'index.html';
+            } else {
+                const errorDiv = document.getElementById('loginError');
+                errorDiv.style.display = 'block';
+                setTimeout(() => errorDiv.style.display = 'none', 3000);
+            }
+        });
+
+        // If already logged in, redirect to dashboard
+        if (localStorage.getItem('isLoggedIn') === 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>
